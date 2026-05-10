@@ -6,15 +6,45 @@
 
 ```
 health-diary/
-├── README.md          # 项目说明
-├── diary/             # 每日日记
-│   └── 2026/          # 按年份组织
-│       └── 05/        # 按月份组织
-├── templates/         # 日记模板
-└── docs/              # 养生知识
+├── README.md              # 项目说明
+├── app/                   # Flutter 移动应用
+│   ├── lib/               # Dart 源代码
+│   ├── pubspec.yaml       # 项目配置
+│   └── README.md          # App 说明
+├── diary/                 # 每日日记（Markdown）
+│   └── 2026/              # 按年份组织
+│       └── 05/            # 按月份组织
+├── templates/             # 日记模板
+└── docs/                  # 养生知识
 ```
 
-## 📝 日记格式
+## 📱 Flutter App
+
+跨平台移动应用，支持 iOS、Android 和 Web。
+
+### 功能特性
+
+- 📝 每日日记记录（睡眠、饮食、运动、心情等）
+- 📅 日历视图，快速查看和创建日记
+- 📊 数据统计图表，追踪健康趋势
+- 🏷️ 标签系统，方便分类管理
+- 💾 本地存储，数据安全
+
+### 快速开始
+
+```bash
+cd app
+flutter pub get
+flutter run
+```
+
+详见 [app/README.md](app/README.md)
+
+## 📝 Markdown 日记
+
+也可以直接用 Markdown 格式记录日记。
+
+### 日记格式
 
 每天记录以下内容：
 
