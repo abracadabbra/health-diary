@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 import '../models/diary_entry.dart';
 import '../services/storage_service.dart';
 import '../utils/constants.dart';
+import '../widgets/custom_widgets.dart';
 import 'editor_screen.dart';
 import 'calendar_screen.dart';
 import 'stats_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,6 +61,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _openSettings() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SettingsScreen(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -66,6 +77,12 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text(AppConstants.appName),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _openSettings,
+          ),
+        ],
       ),
       body: _currentIndex == 0 ? _buildDiaryList() : _buildOtherPages(),
       bottomNavigationBar: BottomNavigationBar(
@@ -88,10 +105,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: _createNewEntry,
               backgroundColor: AppConstants.primaryColor,
-              child: const Icon(Icons.add, color: Colors.white),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('写日记', style: TextStyle(color: Colors.white)),
             )
           : null,
     );
@@ -103,111 +121,115 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (_entries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.book, size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              '还没有日记',
-              style: TextStyle(fontSize: 18, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '点击 + 开始记录养生生活',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
-            ),
-          ],
-        ),
+      return EmptyStateWidget(
+        icon: Icons.book,
+        title: '还没有日记',
+        subtitle: '点击下方按钮开始记录你的养生生活',
+        onAction: _createNewEntry,
+        actionLabel: '写第一篇日记',
       );
     }
 
     return RefreshIndicator(
       onRefresh: _loadEntries,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _entries.length,
-        itemBuilder: (context, index) {
-          final entry = _entries[index];
-          return _buildDiaryCard(entry);
-        },
+      child: Column(
+        children: [
+          _buildTodaySummary(),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: _entries.length,
+              itemBuilder: (context, index) {
+                final entry = _entries[index];
+                return AnimatedCard(
+                  onTap: () => _editEntry(entry),
+                  child: _buildDiaryCard(entry),
+                );
+              },
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildTodaySummary() {
+    final today = _entries.firstWhere(
+      (e) => DateFormat('yyyy-MM-dd').format(e.date) == DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      orElse: () => DiaryEntry(id: '', date: DateTime.now()),
+    );
+
+    if (today.id.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return GradientHeader(
+      title: '今日概览',
+      subtitle: '心情 ${today.moodIndex ?? '-'} · 睡眠 ${today.sleepHours ?? '-'}h · 喝水 ${today.waterCups ?? '-'}杯',
+      icon: Icons.today,
     );
   }
 
   Widget _buildDiaryCard(DiaryEntry entry) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => _editEntry(entry),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    DateFormat('yyyy年MM月dd日 EEEE', 'zh_CN').format(entry.date),
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (entry.weather != null)
-                    Icon(
-                      AppConstants.weatherIcons[entry.weather] ?? Icons.cloud,
-                      color: AppConstants.primaryColor,
-                    ),
-                ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              DateFormat('yyyy年MM月dd日 EEEE', 'zh_CN').format(entry.date),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-              if (entry.sleepQuality != null)
-                _buildInfoRow('睡眠质量', '${'⭐' * entry.sleepQuality!}'),
-              if (entry.moodIndex != null)
-                _buildInfoRow('心情指数', '${'⭐' * entry.moodIndex!}'),
-              if (entry.exerciseType != null)
-                _buildInfoRow('运动', '${entry.exerciseType} ${entry.exerciseMinutes ?? 0}分钟'),
-              if (entry.waterCups != null)
-                _buildInfoRow('喝水', '${entry.waterCups} 杯'),
-              if (entry.notes != null && entry.notes!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text(
-                    entry.notes!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ),
-              if (entry.tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    children: entry.tags.take(3).map((tag) {
-                      return Chip(
-                        label: Text(tag, style: const TextStyle(fontSize: 12)),
-                        backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
-                        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      );
-                    }).toList(),
-                  ),
-                ),
-            ],
-          ),
+            ),
+            if (entry.weather != null)
+              Icon(
+                AppConstants.weatherIcons[entry.weather] ?? Icons.cloud,
+                color: AppConstants.primaryColor,
+              ),
+          ],
         ),
-      ),
+        const SizedBox(height: 12),
+        if (entry.sleepQuality != null)
+          _buildInfoRow('睡眠质量', RatingStars(rating: entry.sleepQuality!)),
+        if (entry.moodIndex != null)
+          _buildInfoRow('心情指数', RatingStars(rating: entry.moodIndex!)),
+        if (entry.exerciseType != null)
+          _buildInfoRow('运动', Text('${entry.exerciseType} ${entry.exerciseMinutes ?? 0}分钟')),
+        if (entry.waterCups != null)
+          _buildInfoRow('喝水', Text('${entry.waterCups} 杯')),
+        if (entry.notes != null && entry.notes!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              entry.notes!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+        if (entry.tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(
+              spacing: 6,
+              children: entry.tags.take(3).map((tag) {
+                return Chip(
+                  label: Text(tag, style: const TextStyle(fontSize: 12)),
+                  backgroundColor: AppConstants.primaryColor.withOpacity(0.1),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                );
+              }).toList(),
+            ),
+          ),
+      ],
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _buildInfoRow(String label, Widget value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
       child: Row(
@@ -219,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
           ),
-          Text(value, style: const TextStyle(fontSize: 14)),
+          value,
         ],
       ),
     );
